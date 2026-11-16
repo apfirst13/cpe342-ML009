@@ -12,7 +12,14 @@ import pandas as pd
 import numpy as np
 
 EXPECTED_ROWS = 25889
-TASK4_VALID_LABELS = {"7-11K", "fiveN", "freefried", "pube", "roblock"}
+TASK4_VALID_CLASSES = {0, 1, 2, 3, 4}
+TASK4_STRING_TO_ID = {
+    "7-11k": 0, "7-11 knights": 0, "7-eleven knight": 0, "0": 0,
+    "fiven": 1, "1": 1,
+    "freefried": 2, "free fried": 2, "2": 2,
+    "pube": 3, "pube mobile": 3, "3": 3,
+    "roblock": 4, "4": 4,
+}
 
 def load_task_pred(task_idx, fallback_df):
     """
@@ -39,7 +46,7 @@ def load_task_pred(task_idx, fallback_df):
         elif task_idx == 3:
             return pd.Series(0.0, index=fallback_df.index, name=col_name)
         elif task_idx == 4:
-            return pd.Series("freefried", index=fallback_df.index, name=col_name)
+            return pd.Series(0, index=fallback_df.index, name=col_name)
             
     filepath = matched_files[0]
     print(f"✅ [Task {task_idx}] โหลดผลลัพธ์จาก: {filepath}")
@@ -99,12 +106,21 @@ def main():
         print("⚠️ พบค่ายอดเงินติดลบใน Task 3 -> กำลังคลิปค่าต่ำสุดให้เป็น 0")
         out_df["task3"] = out_df["task3"].clip(lower=0)
         
-    # Task 4: Label Check
-    t4_labels = set(out_df["task4"].astype(str).unique())
-    invalid_labels = t4_labels - TASK4_VALID_LABELS
+    # Task 4: Numeric Label Check (0=7-11 Knights, 1=FiveN, 2=Free Fried, 3=PUBE, 4=Roblock)
+    if out_df["task4"].dtype == object:
+        mapped_t4 = out_df["task4"].astype(str).str.strip().str.lower().map(TASK4_STRING_TO_ID)
+        if mapped_t4.isna().any():
+            bad_vals = set(out_df.loc[mapped_t4.isna(), "task4"].unique())
+            print(f"❌ Task 4 มีค่าที่ไม่สามารถแปลงเป็นตัวเลข 0-4 ได้: {bad_vals}")
+            sys.exit(1)
+        out_df["task4"] = mapped_t4.astype(int)
+    else:
+        out_df["task4"] = out_df["task4"].astype(int)
+
+    t4_labels = set(out_df["task4"].unique())
+    invalid_labels = t4_labels - TASK4_VALID_CLASSES
     if invalid_labels:
-        print(f"❌ Task 4 มี Label ที่ไม่ถูกต้อง: {invalid_labels}")
-        print(f"Label ที่ถูกต้องคือ: {TASK4_VALID_LABELS}")
+        print(f"❌ Task 4 มีเลขคลาสที่ไม่ถูกต้อง: {invalid_labels} (ต้องเป็น 0, 1, 2, 3, 4 เท่านั้น)")
         sys.exit(1)
         
     # บันทึกไฟล์

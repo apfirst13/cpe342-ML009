@@ -145,10 +145,11 @@ def main():
 
     for col in cat_cols:
         le = LabelEncoder()
-        combined = pd.concat([train_fe[col], test_fe[col]], axis=0).astype(str).fillna("MISSING")
-        le.fit(combined)
-        train_fe[col] = le.transform(train_fe[col].astype(str).fillna("MISSING"))
-        test_fe[col] = le.transform(test_fe[col].astype(str).fillna("MISSING"))
+        trn_vals = train_fe[col].fillna("MISSING").astype(str)
+        le.fit(trn_vals)
+        mapping = {label: idx for idx, label in enumerate(le.classes_)}
+        train_fe[col] = trn_vals.map(mapping).fillna(-1).astype(int)
+        test_fe[col] = test_fe[col].fillna("MISSING").astype(str).map(mapping).fillna(-1).astype(int)
 
     X = train_fe[feature_cols].copy()
     y = train_fe[TARGET_COL].astype(int).values
