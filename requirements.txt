@@ -6,8 +6,9 @@ lightgbm>=4.0.0
 xgboost>=2.0.0
 catboost>=1.2.0
 
-# Hyperparameter Tuning
+# Hyperparameter Tuning & Optimization
 optuna>=3.3.0
+scipy>=1.11.0
 
 # Visualization & Notebook
 matplotlib>=3.7.0
