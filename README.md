@@ -23,7 +23,7 @@ Kaggle Competition: [Player Intelligence System - CPE342 ML](https://www.kaggle.
 ### 1. ดึงโค้ดลงเครื่อง (Git Clone)
 เปิด Terminal หรือ PowerShell ในโฟลเดอร์ที่ต้องการ แล้วรัน:
 ```bash
-git clone https://github.com/<OWNER>/<REPO_NAME>.git
+git clone https://github.com/apfirst13/cpe342-ML009.git
 cd kaggle
 ```
 
