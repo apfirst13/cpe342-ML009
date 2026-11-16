@@ -9,15 +9,17 @@ __pycache__/
 *.pyo
 .ipynb_checkpoints/
 
-# Kaggle Dataset & Large media files (DO NOT COMMIT DATA TO GITHUB)
-data/
-*.zip
-*.tar.gz
-*.png
-*.jpg
-*.jpeg
+# Kaggle Dataset: Ignore heavy files (CSV train/test, images, zips)
+data/**/*.csv
+!data/sample_submission.csv
+data/**/*.zip
+data/**/*.tar.gz
+data/**/*.png
+data/**/*.jpg
+data/**/*.jpeg
+data/cpe342-kaggle-main/
 
-# Submission files
+# Submissions
 submissions/*.csv
 !submissions/.gitkeep
 final_submission*.csv
