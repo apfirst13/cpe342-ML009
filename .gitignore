@@ -1,0 +1,27 @@
+# Virtual Environment
+venv/
+.env/
+env/
+
+# Python cache & Jupyter checkpoints
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Kaggle Dataset & Large media files (DO NOT COMMIT DATA TO GITHUB)
+data/
+*.zip
+*.tar.gz
+*.png
+*.jpg
+*.jpeg
+
+# Submission files
+submissions/*.csv
+!submissions/.gitkeep
+final_submission*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
