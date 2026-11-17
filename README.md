@@ -85,7 +85,7 @@ kaggle/
    * Task 1 $\rightarrow$ `submissions/sub_task1.csv` (คอลัมน์ `id`, `task1` ค่า 0 หรือ 1)
    * Task 2 $\rightarrow$ `submissions/sub_task2.csv` (คอลัมน์ `id`, `task2` ค่า 0, 1, 2, 3)
    * Task 3 $\rightarrow$ `submissions/sub_task3.csv` (คอลัมน์ `id`, `task3` ค่าเงินบาท THB $\ge 0$)
-   * Task 4 $\rightarrow$ `submissions/sub_task4.csv` (คอลัมน์ `id`, `task4` ค่าชื่อเกม string)
+   * Task 4 $\rightarrow$ `submissions/sub_task4.csv` (คอลัมน์ `id`, `task4` ค่าตัวเลข `0–4`: `0=7-11 Knights, 1=FiveN, 2=Free Fried, 3=PUBE, 4=Roblock`)
    * Task 5 $\rightarrow$ `submissions/sub_task5.csv` (คอลัมน์ `id`, `task5` ค่า 0 หรือ 1)
 
 3. **รวมไฟล์คำตอบอัตโนมัติ (Merge & Validate):**  
@@ -105,3 +105,18 @@ kaggle/
    git pull origin main
    git push origin main
    ```
+
+---
+
+## 📝 บันทึกการอัปเดตโค้ดล่าสุด (Changelog)
+
+### 🔹 Task 5: Account Security Monitoring (`task5/train_task5.py`) — อัปเกรดคะแนนรวม Kaggle `0.74` $\rightarrow$ `0.75`
+* **Feature Selection (66 ฟีเจอร์ความเสี่ยงสูง):** ผสมระหว่างค่าเฉลี่ยระดับพฤติกรรม (`_mean`) สำหรับจับกลุ่มผิดปกติแบบคงที่ (Bot Farm / VPN) และค่าการเปลี่ยนแปลงข้ามเวลา (`_range`, `p4_m_p1`, `geo_jump_max`) สำหรับจับบัญชีที่ถูกแฮกหรือเปลี่ยนมือ
+* **Diverse 4-Signal Ensemble:** รวม 4 อัลกอริทึม Unsupervised ได้แก่ **Isolation Forest (30%)** + **PCA Reconstruction Error (25%)** + **k-NN Distance on PCA space (20%)** + **Security Red-Flag & Tail Score (25%)**
+* **Percentile Rank Averaging:** เปลี่ยนจาก `MinMaxScaler` มาใช้ `scipy.stats.rankdata` แปลงคะแนนความผิดปกติเป็นอันดับเปอร์เซ็นไทล์ (ร่วมกับ `np.clip` ช่วง `[-15, 15]`) เพื่อป้องกัน Outlier กดสเกลของโมเดลอื่น
+* **F3 Calibration:** ตั้ง `contamination_rate = 0.20` (`5,178` บัญชี) โดยจับกลุ่ม `Geo > 5` ได้ 100%, `behavior_stability < 0.70` ได้ 91.9%, `mass_item_sale` ได้ 73.7%, และ `password_changed` ได้ 66.6%
+
+### 🔹 Task 2 & Submission Merger (`task2/`, `merge_submission.py`)
+* **Strict Train-Only Encoding:** ปรับ `LabelEncoder` ใน `task2/task2.ipynb` และ `task2/train_task2.py` ให้ `.fit()` บน Train set เท่านั้น เพื่อป้องกัน Data Leakage ตามกติกาของ TA
+* **Task 4 Numeric Validation:** อัปเดต `merge_submission.py` ให้รองรับและตรวจสอบคอลัมน์ `task4` เป็นตัวเลข `0–4` (พร้อมระบบแปลงอัตโนมัติหากไฟล์ต้นทางเป็นชื่อเกม)
+
