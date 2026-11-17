@@ -27,6 +27,13 @@ CPE342-Hackathon/
 *.pth
 *.cbm
 *.joblib
+*.npy
+
+# Task 4 local helper scripts, blueprints & plots (keep locally, exclude from git)
+task4/TASK4_BLUEPRINT.md
+task4/phase*.py
+task4/build_notebook.py
+task4/eda_plots/
 
 # Submissions
 submissions/*.csv
