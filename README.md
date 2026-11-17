@@ -1,11 +1,11 @@
-# CPE 342 Machine Learning (1/2026) - Karena Player Intelligence System 🎮
+# CPE 342 Machine Learning (1/2026) - Karena Player Intelligence System 
 
 Kaggle Competition: [Player Intelligence System - CPE342 ML](https://www.kaggle.com/competitions/cpe342-karena)  
 กำหนดส่ง Kaggle: **24 พ.ย. 2026** | กำหนดส่ง Report & Code (LEB2): **30 พ.ย. 2026**
 
 ---
 
-## 👥 การแบ่งหน้าที่ในทีม (Team Roles & Task Assignments)
+##  การแบ่งหน้าที่ในทีม (Team Roles & Task Assignments)
 
 | สมาชิก | Task ที่รับผิดชอบ | ชนิดของโมเดล / Metric | โฟลเดอร์ทำงาน |
 | :---: | :--- | :--- | :---: |
@@ -16,7 +16,7 @@ Kaggle Competition: [Player Intelligence System - CPE342 ML](https://www.kaggle.
 
 ---
 
-## 💻 คู่มือเริ่มต้นใช้งานสำหรับเพื่อนร่วมทีม (Team Setup Guide)
+##  คู่มือเริ่มต้นใช้งานสำหรับเพื่อนร่วมทีม (Team Setup Guide)
 
 ทำตามขั้นตอนด้านล่างนี้บนเครื่องของตัวเองเพียงครั้งเดียวเพื่อเริ่มงาน:
 
@@ -47,9 +47,9 @@ pip install -r requirements.txt
 
 ---
 
-## 📂 การจัดการชุดข้อมูล (Dataset Setup)
+##  การจัดการชุดข้อมูล (Dataset Setup)
 
-> **⚠️ ข้อสำคัญ:** โฟลเดอร์ `data/` จะ**ไม่ถูกอัปโหลดขึ้น GitHub** (ถูกกันไว้ด้วย `.gitignore` เนื่องจากขนาดไฟล์ใหญ่ 1GB+) ทุกคนต้องดาวน์โหลดมาไว้ในเครื่องตนเอง
+> ** ข้อสำคัญ:** โฟลเดอร์ `data/` จะ**ไม่ถูกอัปโหลดขึ้น GitHub** (ถูกกันไว้ด้วย `.gitignore` เนื่องจากขนาดไฟล์ใหญ่ 1GB+) ทุกคนต้องดาวน์โหลดมาไว้ในเครื่องตนเอง
 
 1. ไปที่แท็บ Data บน Kaggle: [cpe342-karena/data](https://www.kaggle.com/competitions/cpe342-karena/data)
 2. กดปุ่ม **"Download All"** จะได้ไฟล์ `cpe342-karena.zip`
@@ -76,7 +76,7 @@ kaggle/
 
 ---
 
-## 🛠️ ขั้นตอนการทำงานร่วมกันในทีม (Workflow)
+##  ขั้นตอนการทำงานร่วมกันในทีม (Workflow)
 
 1. **เขียนโค้ดในโฟลเดอร์ Task ของตัวเอง:**  
    เช่น คนที่ทำ Task 1 ให้เขียนโค้ดหรือ Notebook ไว้ในโฟลเดอร์ `task1/` เพื่อไม่ให้โค้ดชนกับเพื่อน
