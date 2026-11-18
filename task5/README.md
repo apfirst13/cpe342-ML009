@@ -1,81 +1,35 @@
 # Task 5: Account Security Monitoring (Unsupervised Anomaly Detection)
 
-## ข้อมูลทั่วไป
-* **ผู้รับผิดชอบ (Author):** apfirst13 (คนที่ 1: Task 1 และ Task 5)
-* **วันและเวลาที่บันทึก/ปรับปรุง:** 17 พฤศจิกายน 2026 เวลา 15:30 น. (UTC+7)
-* **โจทย์:** ตรวจจับบัญชีผู้เล่นที่มีพฤติกรรมผิดปกติ เช่น การถูกแฮก/ขโมยบัญชี (Account Theft), บอทฟาร์ม (Bot Farms), การปั๊มแรงก์/ขายไอดี (Account Boosting/Selling) หรือการทุจริตย้ายโซน (VPN Exploitation) โดยไม่มี Label เฉลยในชุดฝึก (Unsupervised Learning)
-* **เกณฑ์การวัดผล (Metric):** F3 Score (กำหนดค่าน้ำหนักให้ Recall สำคัญกว่า Precision 9 เท่า, beta = 3)
-  $$F_3 = \frac{(1 + 3^2) \cdot P \cdot R}{3^2 \cdot P + R} = \frac{10 \cdot P \cdot R}{9P + R}$$
+## Overview
+- **Goal:** Detect anomalous/compromised player accounts (`0 = Normal`, `1 = Anomalous`) from `data/task5/test.csv` (`25,889 rows x 123 columns`) using strictly unsupervised methods trained from scratch (`scikit-learn`, `scipy`, `numpy`, `pandas`).
+- **Metric:** $F_3 = \frac{10 \cdot P \cdot R}{9P + R}$ (weights Recall 9x higher than Precision).
 
----
+## Key Discoveries from Statistical & Structural EDA
+1. **8 Distinct Anomaly Mechanisms (~8.7% total mass):**
+   - **Static/Profile Clusters:** 24/7 Bot Farms (`ip_hash_entropy`, `login_time_variance`, `session_duration_std`, `device_count_std=0`), Low-Activity/High-Skill/High-Spend accounts, Zero-Communication Friend/Guild Spammers, and Low `behavior_stability` compromised buyers.
+   - **Temporal Jump Clusters (Period 3 & 4):** Account Theft (`currency_transfers`, `play_pattern_consistency`, `geo34`, `password_changed`, `mass_item_sale`), Boosting/Account Selling (`skill_trajectory`, `skill_rating`, `friend_removes`, `kda_mean`, `accuracy_mean`, `device_count_4==4`, `guild_changes_4==4`), and VPN Regional Exploit (`geo23`, `vpn_usage`, `purchase_frequency`, `purchase_amount_mean`).
+   - **High-Dimensional Interaction Cluster:** Elevated joint `(accuracy_std, kda_std, performance_stability)` inside marginal bounds.
+2. **Why Previous Approaches Underperformed:**
+   - Hardcoded `5.69%` (`r2_sub_task5.csv`) missed static/interaction clusters (e.g. Bot Farm 2.4%, Low-Activity 5.7%, Zero-Comm 2.3%).
+   - Rank averaging (`v4` at 20%, `draft3` at 35%) diluted specialist signals when an anomaly only appeared in one subspace, and heavily weighted noisy background flags (`password_changed ~ 5%`, `vpn_usage ~ 15%`), requiring 35% contamination just to recover recall.
 
-## ปัญหาที่ตรวจพบในระบบเดิม (Problems Identified)
+## Upgraded Principled Pipeline (`train_task5.py`)
+1. **Multi-View Feature Engineering (`datacard.txt`-derived):**
+   - **Profile View:** 4-period means and within-player standard deviations for all 29 temporal bases + 6 static attributes.
+   - **Temporal Delta View:** Period-to-period deviations (`p4 - mean(p1..3)`, `p3 - mean(p1..2)`, `p2 - p1`, `p4 - p1`) scaled by each base's robust population MAD of `p2 - p1`, plus Euclidean geolocation jumps (`geo_12`, `geo_23`, `geo_34`, `geo_max`).
+2. **Diverse From-Scratch Unsupervised Detectors:**
+   - **OOF Monte Carlo Density-Ratio Estimation (`HistGradientBoostingClassifier` on real vs. block-permuted independent null copies)** across Profile, Mean+Static, Semantic Combat Subspace, and Temporal Deltas.
+   - **Freedman-Diaconis Smoothed 1D KDE Surprise** (`max` and `top-3` per-feature $-\log p(x)$) to detect isolated low-density clusters without high-dimensional dilution.
+   - **Isolation Forests** on both Profile and Temporal Delta views.
+   - **Robust Temporal Deviation Scores** ($L_2$ norm and $L_\infty$ max over MAD-scaled deltas).
+   - **From-Scratch Neural Autoencoder** (`MLPRegressor` bottleneck) reconstruction MSE.
+3. **Log-Compressed Soft-Max / $L_3$ Aggregation:**
+   - Normalizes each detector via median/MAD, applies $\log(1 + z)$, and combines specialized views via $(\text{Max} + \text{Top2Mean} + L_3) / 3$.
+4. **Unsupervised Bayes-Optimal $F_3$ Thresholding:**
+   - Fits a 2-component Gaussian Mixture Model on the final ensemble score (estimated anomaly mass `~8.74%`) and selects the cutoff maximizing expected $F_3$ (`2,556` flagged accounts, `9.87%`).
 
-1. **ปัญหาฟีเจอร์มิติสูงกลบสัญญาณ (Curse of Dimensionality):**
-   * โค้ดเดิมป้อนฟีเจอร์ดิบทั้ง 122 ตัวเข้าไปในโมเดลตรงๆ ฟีเจอร์ปกติที่มีจำนวนมากและเต็มไปด้วย Noise ได้กลบสัญญาณความผิดปกติของบัญชีที่ถูกแฮก
-2. **ปัญหาการตรวจจับพฤติกรรมข้ามช่วงเวลาไม่ครอบคลุม (Temporal Gap):**
-   * โค้ดเดิมคำนวณการเปลี่ยนแปลงเฉพาะ Period 4 ลบ Period 1 หรือ Period 4 ลบ Period 3 หากแฮกเกอร์เข้ามาขโมยทรัพยากรหรือเปลี่ยนพิกัดใน Period 2 หรือ 3 แล้วหยุดนิ่ง โมเดลจะไม่สามารถตรวจจับได้
-3. **ปัญหาบั๊กการสเกลคะแนนพังจาก MinMaxScaler (Scale Distortion):**
-   * โค้ดเดิมใช้ `MinMaxScaler` บีบคะแนน Anomaly ของแต่ละโมเดลให้อยู่ในช่วง [0, 1] ก่อนนำมารวมกัน เมื่อพบ Extreme Outlier ที่มีค่า Reconstruction Error สูงผิดปกติเพียงบัญชีเดียว จะดึงสเกลของทั้งชุดข้อมูลจนคะแนนของแฮกเกอร์ทั่วไปถูกกดเหลือต่ำกว่า 0.005 ทำให้โมเดลนั้นสูญเสียน้ำหนักในการโหวตไปโดยสิ้นเชิง
-4. **ปัญหาการกำหนดสัดส่วนความผิดปกติเกินจริง (Excessive Contamination Rate):**
-   * โค้ดเดิมตั้งค่า `contamination = 0.20` (ฟ้อง 20% หรือ 5,178 บัญชี) ทั้งที่ความเป็นจริงในข้อมูลมีบัญชีผิดปกติเพียง 4% ถึง 6% (ประมาณ 1,000 ถึง 1,500 บัญชี) ส่งผลให้เกิด False Positives (จับผู้เล่นปกติเป็นแพะ) เกือบ 4,000 คน ฉุดค่า Precision ตกฮวบเหลือประมาณ 17% และดึงคะแนน F3 ร่วงลงมาเหลือเพียงประมาณ 0.34 ถึง 0.38
-
----
-
-## แนวทางการแก้ไขและการปรับปรุง (Solutions Implemented)
-
-1. **สกัดฟีเจอร์ความผันผวนและค่าการเปลี่ยนแปลงตามเวลา (Temporal Volatility & Drift):**
-   * คำนวณค่า `range` (max - min) และค่าส่วนเบี่ยงเบนมาตรฐาน (`std`) ตลอดทั้ง 4 ช่วงเวลา (1, 2, 3, 4) ครบทั้ง 29 ตัวแปรพฤติกรรม
-   * สร้างฟีเจอร์ `geo_max_jump` เพื่อจับระยะทางกระโดดพิกัดสูงสุดระหว่างช่วงเวลา 1->2, 2->3, และ 3->4 (พบเคสกระโดดข้ามทวีปเพิ่มขึ้น 20 บัญชีที่ระบบเดิมตรวจไม่พบ)
-   * คำนวณความเสี่ยงความปลอดภัยเชิงโดเมน: `theft_risk`, `boosting_risk`, และ `stability_inversion`
-2. **เปลี่ยนระบบการปรับขนาดข้อมูล (Robust Scaling):**
-   * เปลี่ยนจาก `StandardScaler` มาเป็น `RobustScaler` ซึ่งใช้ค่ามัธยฐาน (Median) และพิสัยระหว่างควอร์ไทล์ (IQR) ป้องกันไม่ให้ค่าสุดโต่งบิดเบือนการกระจายตัวของข้อมูล
-3. **เปลี่ยนการรวมคะแนนเป็น Percentile Rank Averaging (แก้ไข MinMaxScaler 100%):**
-   * ใช้ `scipy.stats.rankdata` แปลงคะแนน Anomaly Score ของแต่ละโมเดลให้อยู่ในรูปของอันดับเปอร์เซ็นไทล์ (Percentile [0, 1]) ก่อนนำมาถ่วงน้ำหนักรวมกัน
-   * สูตรคะแนนรวม:
-     $$\text{ensemble\_score} = 0.40 \cdot \text{iso\_rank} + 0.35 \cdot \text{rec\_rank} + 0.25 \cdot \text{knn\_rank}$$
-   * ขจัดผลกระทบจาก Outlier ดึงสเกลได้อย่างสมบูรณ์ ทุกโมเดลมีสิทธิ์โหวตตามน้ำหนักที่กำหนดจริง
-4. **การปรับจุดตัดและการชดเชยเพื่อ F3 Metric (Boundary Calibration):**
-   * **Deterministic Safety Net:** กำหนดให้บัญชีที่มีพฤติกรรมสุดโต่งระดับทำลายระบบ (พิกัดหลุดโลก, เรตติ้งทะลุ, เงินโอนพุ่ง, stability ต่ำกว่า 0.5) จำนวน 1,073 บัญชี เป็น Anomaly ทันที 100% เพื่อไม่ให้ Recall ตก
-   * **Subtle Outliers Inclusion:** เติมบัญชีที่มีคะแนน Ensemble Rank สูงสุดอีก 400 บัญชี
-   * **ผลลัพธ์:** สัดส่วนรวมอยู่ที่ 1,473 บัญชี (5.69%) ช่วยฟื้นฟู Precision กลับมาที่ประมาณ 75% ถึง 80% ในขณะที่รักษาระดับ Recall ได้มากกว่า 88% ถึง 90% ผลักดัน F3 สู่ระดับ 0.88 ถึง 0.90+
-
----
-
-## ตารางเปรียบเทียบก่อนและหลังการแก้ไข (Comparison Table)
-
-| รายการ | ระบบเดิม (Before) | ระบบใหม่ (After) |
-| :--- | :--- | :--- |
-| **Feature Extraction** | ฟีเจอร์ดิบ 122 ตัว | ฟีเจอร์ความผันผวน 4 ช่วงเวลา + geo_max_jump + ดัชนีความเสี่ยง |
-| **Data Scaler** | StandardScaler | RobustScaler |
-| **Ensemble Scoring** | MinMaxScaler (สเกลบิดเบี้ยวจาก Outlier) | Percentile Rank Averaging (scipy.stats.rankdata) |
-| **สัดส่วนที่ฟ้อง (Anomalies)** | 5,178 บัญชี (20.00%) | 1,473 บัญชี (5.69%) |
-| **False Positives** | ประมาณ 3,700 ถึง 4,000 บัญชี | ลดลงเหลือประมาณ 200 ถึง 300 บัญชี |
-| **Estimated Precision** | ประมาณ 17% | ประมาณ 75% ถึง 80% |
-| **Estimated Recall** | ประมาณ 75% ถึง 80% | ประมาณ 88% ถึง 90%+ |
-| **Estimated F3 Score** | ประมาณ 0.34 ถึง 0.38 | ประมาณ 0.88 ถึง 0.90+ |
-
----
-
-## ขั้นตอนการทำงานของโค้ดใน Notebook (task5_model.ipynb)
-
-* **Step 1: Load Data:** โหลดชุดข้อมูล test.csv ขนาด 25,889 แถว x 123 คอลัมน์
-* **Step 2: Extreme Outliers Detection:** กรองบัญชีผิดปกติระดับ Deterministic Outliers จำนวน 1,073 บัญชี
-* **Step 3: Feature Engineering & Preprocessing:** สกัดฟีเจอร์พฤติกรรม 4 ช่วงเวลา จัดการ Missing Values ด้วย Median และปรับสเกลด้วย RobustScaler
-* **Step 4: Multi-Model Scoring & Rank Averaging:** เทรน Isolation Forest, PCA Reconstruction และ kNN Distance แล้วรวมคะแนนด้วย Rank Averaging
-* **Step 5: Decision Boundary Calibration:** รวมกลุ่ม Safety Net และ Top Subtle Outliers 400 บัญชี (รวม 1,473 บัญชี)
-* **Step 6: Export Predictions:** ส่งออกผลลัพธ์เป็นไฟล์ submissions/sub_task5.csv
-
----
-
-## คำแนะนำสำหรับการทดสอบคะแนนจริงบน Kaggle (Probing Guide)
-
-1. ล็อกคำตอบของ task1, task2, task3, task4 ให้คงเดิม
-2. นำไฟล์ submissions/sub_task5.csv ไปรันผ่าน merge_submission.py เพื่อสร้าง final_submission.csv
-3. นำ final_submission.csv ส่งขึ้น Kaggle
-4. คำนวณคะแนน F3 ที่แท้จริงของ Task 5 จากการขยับของ Leaderboard:
-   $$\Delta\text{Score}_{\text{Task 5}} = \Delta\text{Score}_{\text{Leaderboard}} \times 5$$
-5. การจูนค่า extra_k เพื่อหาจุดสูงสุดของข้อสอบ:
-   * extra_k = 400 (รวม 1,473 บัญชี หรือ 5.69%) - ค่าเริ่มต้นปัจจุบัน
-   * extra_k = 700 (รวม 1,773 บัญชี หรือ 6.85%)
-   * extra_k = 1000 (รวม 2,073 บัญชี หรือ 8.01%)
+## How to Run
+```powershell
+.\venv\Scripts\python.exe task5\train_task5.py
+.\venv\Scripts\python.exe merge_submission.py
+```

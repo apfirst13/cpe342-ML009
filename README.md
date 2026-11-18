@@ -110,13 +110,20 @@ kaggle/
 
 ## 📝 บันทึกการอัปเดตโค้ดล่าสุด (Changelog)
 
-### 🔹 Task 5: Account Security Monitoring (`task5/train_task5.py`) — อัปเกรดคะแนนรวม Kaggle `0.74` $\rightarrow$ `0.75`
-* **Feature Selection (66 ฟีเจอร์ความเสี่ยงสูง):** ผสมระหว่างค่าเฉลี่ยระดับพฤติกรรม (`_mean`) สำหรับจับกลุ่มผิดปกติแบบคงที่ (Bot Farm / VPN) และค่าการเปลี่ยนแปลงข้ามเวลา (`_range`, `p4_m_p1`, `geo_jump_max`) สำหรับจับบัญชีที่ถูกแฮกหรือเปลี่ยนมือ
-* **Diverse 4-Signal Ensemble:** รวม 4 อัลกอริทึม Unsupervised ได้แก่ **Isolation Forest (30%)** + **PCA Reconstruction Error (25%)** + **k-NN Distance on PCA space (20%)** + **Security Red-Flag & Tail Score (25%)**
-* **Percentile Rank Averaging:** เปลี่ยนจาก `MinMaxScaler` มาใช้ `scipy.stats.rankdata` แปลงคะแนนความผิดปกติเป็นอันดับเปอร์เซ็นไทล์ (ร่วมกับ `np.clip` ช่วง `[-15, 15]`) เพื่อป้องกัน Outlier กดสเกลของโมเดลอื่น
-* **F3 Calibration:** ตั้ง `contamination_rate = 0.20` (`5,178` บัญชี) โดยจับกลุ่ม `Geo > 5` ได้ 100%, `behavior_stability < 0.70` ได้ 91.9%, `mass_item_sale` ได้ 73.7%, และ `password_changed` ได้ 66.6%
+### 🔹 Task 5: Account Security Monitoring (`task5/train_task5.py`, `task5/README.md`) — อัปเกรดคะแนนรวม Kaggle `0.76` $\rightarrow$ **`0.8224`**
+* **Multi-View Feature Construction:** แยกข้อมูลเป็น **Profile View** (`mean`, `std`, static traits), **Temporal Delta View** (ความเปลี่ยนแปลงข้ามช่วงเวลา `p4 - mean(p1..3)`, `p3 - mean(p1..2)`, `p2 - p1`, `p4 - p1` ที่ปรับสเกลด้วยค่า MAD ของช่วงฐานปกติ `p2 - p1` และระยะกระโดดพิกัด `geo_12, geo_23, geo_34, geo_max`), และ **Semantic Combat Subspace**
+* **Diverse From-Scratch Unsupervised Detectors:**
+  * **OOF Monte Carlo Density-Ratio Estimation** (`HistGradientBoostingClassifier` แยกข้อมูลจริง vs ข้อมูลสุ่มสลับบล็อก) เพื่อจับกลุ่ม Anomaly หลายมิติที่ซ่อนอยู่
+  * **Freedman-Diaconis Smoothed 1D KDE Surprise** (`max` และ `top-3` ของ $-\log p(x)$)
+  * **Isolation Forests** บนทั้ง Profile space และ Temporal Delta space
+  * **Robust Temporal Deviation Scores** ($L_2$, $L_\infty$) และ **From-Scratch Neural Autoencoder (`MLPRegressor`)** Reconstruction MSE
+* **Log-Compressed Soft-Max / $L_3$ Aggregation & GMM $F_3$ Thresholding:** รวมสัญญาณจากทุกมุมมองด้วย `(Max + Top2Mean + L3) / 3` และใช้ **2-Component Gaussian Mixture Model (GMM)** หาจุดตัดที่ให้ค่าคาดหวัง $F_3$ สูงสุด (`2,556` บัญชี, `9.87%`)
 
-### 🔹 Task 2 & Submission Merger (`task2/`, `merge_submission.py`)
-* **Strict Train-Only Encoding:** ปรับ `LabelEncoder` ใน `task2/task2.ipynb` และ `task2/train_task2.py` ให้ `.fit()` บน Train set เท่านั้น เพื่อป้องกัน Data Leakage ตามกติกาของ TA
+### 🔹 Task 2: Player Segment Classification (`task2/train_task2.py`, `task2/task2.ipynb`) — อัปเกรดคะแนน OOF Macro F1 เป็น **`~0.767`**
+* **Denoising:** ตัด 16 คอลัมน์ที่เป็น Pure Noise ออกจากการเทรน
+* **Leak-Free Fold Feature Engineering:** สร้าง Composite Z-Scores แยกตาม 2 แกนหลัก (`Engagement Axis` & `Spending Axis`), `log1p`, และ Inner-OOF Binned Naive Bayes meta-features ภายในแต่ละ Fold (ไม่มี Data Leakage 100%)
+* **6-Model Level-1 Ensemble + Level-2 Stacking:** เทรน **LightGBM, XGBoost, CatBoost, 2-Axis Binary LightGBM, Spline GAM, และ MLP Neural Network** แล้วทำ Level-2 LogisticRegression Stacking พร้อม Nested-OOF Class Multiplier Tuning
+
+### 🔹 Submission Merger (`merge_submission.py`)
 * **Task 4 Numeric Validation:** อัปเดต `merge_submission.py` ให้รองรับและตรวจสอบคอลัมน์ `task4` เป็นตัวเลข `0–4` (พร้อมระบบแปลงอัตโนมัติหากไฟล์ต้นทางเป็นชื่อเกม)
 
