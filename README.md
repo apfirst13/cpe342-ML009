@@ -110,6 +110,13 @@ kaggle/
 
 ## 📝 บันทึกการอัปเดตโค้ดล่าสุด (Changelog)
 
+### 🔹 Task 1: Anti-Cheat Pre-Filter (`task1/train_best_task1.py`, `task1/task1_ultimate.ipynb`, `task1/README.md`) — อัปเกรด OOF $F_2$ เป็น **`0.83727`** (ROC-AUC **`0.89099`**) 🏆
+* **Extended Domain & Anomaly Features (66 Features):** เพิ่มฟีเจอร์พฤติกรรมหลุดขอบเขตมนุษย์ (`inhuman_reaction_hs`, `inhuman_aim_score`, `reaction_aim_product`), ดัชนีความแม่นยำเทียบกับแท็กติก (`mech_vs_tactics`), ดัชนีความเสี่ยงบอท/Smurf (`smurf_risk_composite`), Relative Z-Scores ตามกลุ่ม Quantile ของ Level, และ Missing Pattern Indicators
+* **Loss & Class Weight Tuning (`scale_pos_weight = 2.0`):** ปรับจูนน้ำหนักให้โมเดลต้นไม้ลงโทษ False Negative หนักขึ้น สอดคล้องกับ $F_2$ Metric (เน้น Recall สูงกว่า Precision 4 เท่า)
+* **Semi-Supervised Learning (Pseudo-Labeling บน 13,184 แถวที่ไม่มี Label):** ดึงตัวอย่างที่มีความมั่นใจสูงเป็นพิเศษ ($p \ge 0.96$ เป็นคนโกง 1,049 ตัวอย่าง และ $p \le 0.04$ เป็นคนปกติ 3,277 ตัวอย่าง รวม **4,326 ตัวอย่าง**) นำกลับเข้ามาเสริมในชุดเทรน LightGBM รอบที่สอง (Leak-Free เฉพาะ Training Folds)
+* **Nelder-Mead Optimal Probability Blending:** รวมพลัง 3 โมเดลต้นไม้ (`0.3901 * LGB_pseudo + 0.3194 * XGB + 0.2905 * Cat`) และปรับ Threshold ละเอียดที่ **`0.3060`** (Recall = `0.9788`, Precision = `0.5304`)
+* **Deliverables:** บันทึกผลลัพธ์คำตอบลง `submissions/sub_task1.csv` และรวมเข้า `final_submission.csv` เรียบร้อยแล้ว
+
 ### 🔹 Task 5: Account Security Monitoring (`task5/train_task5.py`, `task5/README.md`) — อัปเกรดคะแนนรวม Kaggle `0.76` $\rightarrow$ **`0.8224`**
 * **Multi-View Feature Construction:** แยกข้อมูลเป็น **Profile View** (`mean`, `std`, static traits), **Temporal Delta View** (ความเปลี่ยนแปลงข้ามช่วงเวลา `p4 - mean(p1..3)`, `p3 - mean(p1..2)`, `p2 - p1`, `p4 - p1` ที่ปรับสเกลด้วยค่า MAD ของช่วงฐานปกติ `p2 - p1` และระยะกระโดดพิกัด `geo_12, geo_23, geo_34, geo_max`), และ **Semantic Combat Subspace**
 * **Diverse From-Scratch Unsupervised Detectors:**

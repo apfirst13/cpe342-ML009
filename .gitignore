@@ -29,6 +29,8 @@ CPE342-Hackathon/
 *.cbm
 *.joblib
 *.npy
+catboost_info/
+**/catboost_info/
 
 # Task 4 local helper scripts, blueprints & plots (keep locally, exclude from git)
 task4/TASK4_BLUEPRINT.md
