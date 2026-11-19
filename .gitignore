@@ -32,11 +32,15 @@ CPE342-Hackathon/
 catboost_info/
 **/catboost_info/
 
-# Task 4 local helper scripts, blueprints & plots (keep locally, exclude from git)
+# Task 4 & Task 3 local helper scripts, blueprints & plots (keep locally, exclude from git)
 task4/TASK4_BLUEPRINT.md
 task4/phase*.py
 task4/build_notebook.py
 task4/eda_plots/
+task3/step*.py
+task3/train_task3_upgraded.py
+task3/build_task3_notebook.py
+task3/sub_task3.csv
 
 # Submissions
 submissions/*.csv
