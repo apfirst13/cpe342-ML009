@@ -62,6 +62,19 @@
 
 ---
 
+## V7 Experiment Log (Residual Scan, Marginalized Combat GMM & PU Self-Distillation)
+
+- **What Was Tested (Pure Unsupervised ML, Zero Overrides):**
+  1. **Residual Pairwise Correlation Scan:** Excluded the `2,165` flagged accounts (`sub_task5_v7-b.csv`) and scanned all pairwise correlations across the 29 temporal means on the remaining `23,724` accounts; found **0 pairs with $|r| > 0.04$**, confirming no undiscovered 11th major cluster exists.
+  2. **Discrete Empirical PMF LLR Detector:** Added Period-4 vs. Period-1..2 log-likelihood ratio scoring for low-cardinality count bases (`nunique <= 25`).
+  3. **Marginalized 3D Combat GMM:** Blended a 2-component full-covariance GMM (with exact marginalization for partial `NaN` rows) into the 3D Combat Consistency subspace and lowered `clamp_floor` (`0.16 -> 0.11`).
+  4. **Unsupervised PU Self-Distillation (Elkan-Noto 5-Fold OOF LightGBM + CatBoost):** Distilled high-confidence anchors (`p >= 0.90`, `2,053` rows) into a unified joint posterior (`c_est = 0.9586`, `PU OOF AUC = 0.99941`).
+- **Observed Result & Lesson Learned:**
+  - Flagged **`2,260` accounts (`8.73%`)** (`Combat Var Corner` rose `77.7% -> 80.3%`, `behavior_stability == NaN` recoveries rose `17 -> 31`), differing from `sub_task5_v7-b.csv` (`2,165` / `8.36%`) by `145` borderline rows (`+120` added, `-25` removed).
+  - **Kaggle LB Outcome:** Scored slightly lower than `sub_task5_v7-b.csv`, confirming that the true anomaly mass is tightly concentrated around `~8.3–8.4%` (`~2,165` accounts) and relaxing the posterior floor pulls in borderline false positives.
+
+---
+
 ## How to Run & Merge
 ```powershell
 python task5\train_task5.py
