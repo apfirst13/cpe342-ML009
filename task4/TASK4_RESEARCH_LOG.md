@@ -32,6 +32,7 @@
 | **T4-Exp1** | แก้ `NaN` 148 แถว + ถอดตัวคูณผิดทาง + Train-Only Prior Debias (`tau=0.50`) | `0.97239` (`+0.00108`) | `0.5795` (`58.59%`) | `0.7228` | `[18.7, 21.4, 14.4, 25.4, 20.0]` | `1,643` รูป (`6.35%`) | `submissions/sub_task4_v1_prior.csv` | สำรองเทียบ |
 | **T4-Exp2** | De-Tinted 3-View (`MobileNetV3-Large + ConvNeXt-Nano-IN12k`) PCA-MLP + 24 Distortion Feats + LGBM/LR Stacker | `0.97326` (`+0.00195`) | — | — | `[19.9, 21.0, 14.4, 26.2, 18.6]` | — | `submissions/sub_task4_v2_ensemble.csv` | พัฒนาต่อเป็น Exp3 |
 | **T4-Exp3** | **Full 1,944-D GPU Residual-MLP (`0.9142` เดี่ยว) + 24 Distortion Feats + `CatBoost + LGBM + LogReg` Meta-Ensemble** | **`0.97355` (`+0.00224`)** | **`0.6492` (`65.45%`)** | **`0.7522`** | **`[20.0, 20.9, 14.5, 26.6, 18.1]`** | **`1,323` รูป (`5.11%`, `1,090` รูปในจุดที่ 2 โมเดลเดิมขัดกัน)** | **`submissions/sub_task4_v3_detinted.csv`** (และ `submissions/sub_task4.csv`) | **`0.83963` (`+0.00352`)** |
+| **T4-Exp4 – Exp6** | **Colab L4 + Local Calibrated 3-Paradigm Ensemble (`ConvNeXt-Small` + `Swin-Tiny` End-to-End 5-Fold บน Unseen-Scene CV + `5-Foundation DINOv2/SigLIP2/EVA02-CLIP/ConvNeXt-T/EffNetV2-S` MLP)** | **Unseen-Scene `0.98036` (`Bal 0.97909`, `+0.1062` จากฐาน V3 `0.87290`)** | **Test Disagree `ConvNeXtS != SwinT` ลดเหลือ `9.23%`** | **`Dark<45: 0.9403` (`+0.2044`), `Rot: 0.9695` (`+0.1220`), `Noise: 0.9779`** | **`[16.2, 23.2, 15.4, 25.9, 19.3]`** | **`3,481` รูปเทียบ V3 (`13.45%`)** | **`submissions/sub_task4_v5_cloud_ensemble.csv`** (และอัปเดต `submissions/sub_task4.csv`) | **`0.85209` (`+0.01246` จาก V3)** |
 
 *(หมายเหตุ: ผลคะแนนรวม Kaggle LB `0.83611 -> 0.83963` หรือเพิ่มขึ้น `+0.00352` เทียบเท่ากับการดันคะแนนเฉพาะ Task 4 ขึ้นประมาณ **`+0.0176` หรือ `+1.76%`** จากน้ำหนัก 20%)*
 
@@ -53,4 +54,27 @@
   - ชนะ V0 เดิมครบทุกเกณฑ์วัดผล: **Balanced-Prior OOF Macro F1 เพิ่มเป็น `0.97355` (`+0.00224`)**, **Disagreement Subset Macro F1 เพิ่มจาก `0.6403` เป็น `0.6492` (`+0.0089`)**, และ **Low-Confidence Subset Macro F1 เพิ่มเป็น `0.7522`**
   - บนชุด Test (`25,889` รูป) เปลี่ยนคำตอบไปรวม **`1,323` รูป (`5.11%`)** โดย **`1,090` รูป (`82.4%` ของที่เปลี่ยนทั้งหมด)** อยู่ในกลุ่ม `3,871` รูปที่ `ResNet34d` และ `EfficientNet-B0` เคยทายขัดแย้งกันโดยตรง!
   - **ผลคะแนน Kaggle LB จริง:** ดันคะแนนรวมพุ่งจาก **`0.83611` เป็น `0.83963` (`+0.00352` คะแนนรวม / `+0.0176` โดยประมาณบน Task 4)** ขึ้นมาจ่อติด `0.8400` แล้ว เหลือเพียง `+0.00037`!
+
+---
+
+## 4. รอบ T4-Exp4 ถึง T4-Exp6 — Cloud L4 Multi-Foundation + Domain-Hardened E2E Ensemble
+
+### 4.1 Phase 0: Golden Unseen-Scene 5-Fold Benchmark (`task4/phase0_unseen_scene_benchmark.py`)
+- สร้างชุดแบ่งกลุ่มฉากภายใน `train.csv` เพียงอย่างเดียว (`418` กลุ่มฉาก เฉลี่ย `~75` รูป/กลุ่ม) เพื่อให้ Validation Fold เจอเฉพาะฉากใหม่ที่ใกล้เคียงชุด Test (`Val->Train NN >= 0.85` ลดจาก `10.95%` เหลือ `5.03%`) โดยยังคงสัดส่วนคลาสสมดุลทุก Fold (`[6292, 6314, 6311, 6312, 6317]`)
+- วัดผลชุดฟีเจอร์ V3 เดิม (`1,944-D`) บน Golden Unseen-Scene 5-Fold ได้ `BalF1 = 0.87290` และพบจุดอ่อนหลักที่ `Dark < 45` ได้เพียง `0.7359`, `Border > 0.15` ได้ `0.8475`, และ `Noise > 90` ได้ `0.8457`
+
+### 4.2 Phase 1 + Phase 2 บน Google Colab L4 (`task4/task4_cloud_t4_v4.ipynb`)
+- พัฒนาฟังก์ชันกู้ภาพ 4 มุมมองแบบรายรูปอิสระ (`gpu_denoise_restore_base`) ได้แก่ `Median 3x3` ลดเกรนนอยส์ก่อนดึงแสง, ปรับ Gamma สำหรับภาพมืดจัดแบบ Noise-Safe ไม่ขยายนอยส์สีรุ้ง, De-Tinting เฉพาะพิกเซลเนื้อภาพ, `86%` Center-Crop ตัดมุมสามเหลี่ยมดำจากการหมุน, และมุมมองโครงสร้างแสงเงาขาวดำไร้เฉดสี (`Hue-Free Luminance Structure`)
+- **T4-Exp4 (5 Vision Foundation Backbones):** `DINOv2-Small`, `SigLIP2-Base`, `EVA02-CLIP-Base`, `ConvNeXt-Tiny-IN22k`, และ `EffNetV2-S-IN21k` บน `folds_scene` ดัน Unseen-Scene All/Bal F1 ขึ้นมาที่ **`0.94045 / 0.93903`** (`Dark < 45` พุ่งเป็น `0.8408`)
+- **T4-Exp5 (End-to-End Domain-Invariant Fine-Tuning บน `folds_scene`):** เพิ่ม GPU Affine Rotation `±35°` ขอบดำ, Channel Permutation, Extreme Dark Gamma, Shot Noise, Cutout, MixUp, Softmax แบบ FP32, และ 4-View TTA โดยตัด Vertical Flip กลับหัวทิ้ง
+  - `mobilenetv3_large_100.ra_in1k`: Unseen All/Bal F1 = **`0.94789 / 0.94708`** (`D45 = 0.8677`)
+  - `swin_tiny_patch4_window7_224.ms_in22k_ft_in1k`: Unseen All/Bal F1 = **`0.97451 / 0.97313`** (`D45 = 0.9332`, Test Conf `0.8205`)
+  - `convnext_small.fb_in22k_ft_in1k`: Unseen All/Bal F1 = **`0.97765 / 0.97672`** (`D45 = 0.9421`, `Rot = 0.9658`, `Noise = 0.9745`, Test Conf `0.8371`)
+
+### 4.3 Phase 3: PyTorch Temperature Calibration & 3-Paradigm Ensemble (`task4/run_phase3_cloud_meta_ensemble.py`)
+- ปรับเทียบอุณหภูมิรายโมเดลด้วย PyTorch LBFGS (`BalLogLoss` ลดลงทุกตัว เช่น `ConvNeXt-Small: 0.1068 -> 0.0804`, `Swin-Tiny: 0.1202 -> 0.0840`) และวัดเทียบทั้ง **Nested Calibrated 7-Model Logit Blend (`All = 0.98016, Bal = 0.97866`)**, **Meta-CatBoost (`0.97846 / 0.97852`)**, **Meta-LightGBM (`0.97851 / 0.97774`)**, และ **3-Family Calibrated Logit (`0.50 ConvNeXt-Small + 0.35 Swin-Tiny + 0.15 Cloud-5-Foundation MLP`)**
+- ตัวที่ชนะทุกเกณฑ์ Unseen-Scene สูงสุดคือ **3-Family Calibrated Logit (`AllF1 = 0.98036`, `BalF1 = 0.97909`, `Dark<45 = 0.9403`, `Border>0.15 = 0.9695`, `Noise>90 = 0.9779`)**
+- ลด Test Disagreement ระหว่างสถาปัตยกรรม (`ConvNeXt-Small != Swin-Tiny`) ลงเหลือเพียง **`9.23%`** (เทียบกับ `ResNet34d != EffNet-B0` เดิม `14.95%`), เปลี่ยนคำตอบจาก V3 รวม **`3,481` รูป (`13.45%`)** โดยตรวจสอบภาพที่เปลี่ยนด้วยตาเปล่าแล้วยืนยันว่ากู้ภาพ `FiveN`, `Roblock`, `Free Fried`, และ `PUBE` ที่เคยตกเป็น `7-11 Knights` กลับคืนได้ถูกต้องชัดเจน
+- บันทึกผลลัพธ์ตรวจสอบครบ `25,889` แถว ไร้ `NaN` ลงไฟล์ **`submissions/sub_task4_v5_cloud_ensemble.csv`** และอัปเดต `submissions/sub_task4.csv` เรียบร้อยแล้ว
+
 
