@@ -1,0 +1,22 @@
+{
+  "version": "V3_10Fold_BayesL1",
+  "winner_config": "E4: E3 + Exact Bayes-L1 3-Comp Season Mixture",
+  "nested_oof_nmae": 0.796254,
+  "nested_oof_mae": 2685.9884,
+  "prev_baseline_nmae": 0.79535,
+  "delta_nmae": 0.000904,
+  "stage1_blend_auc": 0.785392,
+  "stage1_blend_logloss": 0.551057,
+  "stage1_seg3_auc": 0.581948,
+  "stage2_blend_spender_mae": 3297.3498,
+  "stage2_seg3_spender_mae": 11720.0936,
+  "segment_imputer_val_acc": 0.924742,
+  "ablation": {
+    "E1: Global Homoscedastic Q_U (tau=0.50)": 0.796245,
+    "E2: Segment-Stratified Heteroscedastic Q_U + Post-Clip": 0.796245,
+    "E3: E2 + Exact Bayes-L1 Mixture for segment==NaN": 0.796243,
+    "E4: E3 + Exact Bayes-L1 3-Comp Season Mixture": 0.796254,
+    "E5: E4 + Exact Bayes-L1 VIP & DSLP Mixture": 0.796243
+  },
+  "runtime_sec": 776.9
+}

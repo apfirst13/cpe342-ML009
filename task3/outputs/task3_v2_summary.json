@@ -1,0 +1,21 @@
+{
+  "winner_config": "E4: E3 + Exact Bayes-L1 3-Comp Season Mixture (Blended S1)",
+  "nested_oof_nmae": 0.796281,
+  "nested_oof_mae": 2685.5469,
+  "prev_baseline_nmae": 0.79535,
+  "delta_nmae": 0.000931,
+  "stage1_blend_auc": 0.785607,
+  "stage1_blend_logloss": 0.551184,
+  "stage2_blend_spender_mae": 3297.3042,
+  "segment_imputer_val_acc": 0.924284,
+  "ablation": {
+    "E1: Global Homoscedastic Q_U (tau=0.50)": 0.796277,
+    "E2: Segment-Stratified Heteroscedastic Q_U + Post-Clip": 0.796273,
+    "E3: E2 + Exact Bayes-L1 Mixture for segment==NaN": 0.796272,
+    "E4: E3 + Exact Bayes-L1 3-Comp Season Mixture (Blended S1)": 0.796281,
+    "E4b: E4 using Pure Bayes32 Stage 1": 0.79628,
+    "E5: E4 + Provenance-Stratified U (Exact vs Noisy Hist)": 0.79628,
+    "E6: E4 + Nested Per-Segment Alpha Micro-Calibration": 0.796275
+  },
+  "runtime_sec": 429.9
+}

@@ -1,0 +1,14 @@
+{
+  "winner": "50/50 Multi-CV Ensemble (V2 5-Fold + V4 10-Fold Residual)",
+  "nested_oof_nmae": 0.796296,
+  "nested_oof_mae_thb": 2685.2939,
+  "baseline_nmae": 0.79535,
+  "baseline_mae_thb": 2700.95,
+  "nmae_gain": 0.000946,
+  "mae_reduction_thb": 15.6561,
+  "stage1_auc": 0.785464,
+  "stage1_logloss": 0.551098,
+  "stage2_spender_mae_thb": 3296.5111,
+  "test_active_spenders": 13048,
+  "test_active_mean_thb": 20828.67
+}
