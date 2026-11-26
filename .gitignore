@@ -47,6 +47,14 @@ submissions/*.csv
 !submissions/.gitkeep
 final_submission*.csv
 
+# Local scratch, drafts & backup notebooks
+scratch/
+TECHNICAL_REPORT.md
+*_backup.ipynb
+task4/task4_cloud_max_score.ipynb
+task1/task1test.ipynb
+task1/best_threshold.txt
+
 # OS files
 .DS_Store
 Thumbs.db
