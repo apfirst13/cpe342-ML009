@@ -87,5 +87,5 @@ python merge_submission.py
 | **Task 1** | 71-Feature Covariance-Imputed + Fold-Isolated Pseudo-Labeling + 7-Model Logit Blend | Nested OOF $F_2 = 0.83841$ (AUC $0.89340$) / Global $0.83863$ |
 | **Task 2** | Denoise 16 Noise Cols + 2-Axis Latent Scores + 6-Model Level-2 Stacking | Nested OOF Macro $F_1 = 0.75664$ (Full $0.75760$) |
 | **Task 3** | Algebraic Recovery + Two-Stage Bayes-L1 + Mixture CDF + 50/50 Multi-CV Ensemble | Nested OOF NMAE $= 0.79630$ |
-| **Task 4** | De-Tinted Restoration + Calibrated 3-Paradigm Ensemble (`ConvNeXt-S` + `Swin-T` + `5-Foundation MLP`) | Unseen-Scene $F_1 = 0.98036$ (Balanced $F_1 = 0.97909$) |
+| **Task 4** | De-Tinted Restoration + Calibrated 3-Paradigm Ensemble (`ConvNeXt-S` + `Swin-T` + `5-Foundation MLP`) | Unseen-Scene $F_1 = 0.98038$ (Balanced $F_1 = 0.97910$) |
 | **Task 5** | V7-A Pure Unsupervised (Unclipped 1D Topo KDE + Poisson $Z \ge 2.0$ + 1-Step EM 3D Combat DR + Mixture-MICE + Noisy-OR) | $2,163$ Flagged Accounts ($8.35\%$) |
