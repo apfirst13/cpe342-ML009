@@ -2,7 +2,7 @@
 Task 5: Account Security Monitoring (Pure Unsupervised Multi-Paradigm Anomaly Detection)
 Metric: F3-Score (Recall weighted 9x higher than Precision)
 
-Rule-Compliant V6 Architecture (Train from Scratch, Zero Rigid Rule Overrides, Zero Labels):
+Rule-Compliant V7-B Architecture (Train from Scratch, Zero Rigid Rule Overrides, Zero Labels):
 1. Multi-View & Bridged-Geolocation Feature Engineering:
    - Profile View: 4-period mean & std across 29 behavioral bases + 6 static attributes.
    - Domain Synergy Features: Inactivity-vs-Skill/Spend, Combat Inconsistency, Bot Regularity,
@@ -10,22 +10,27 @@ Rule-Compliant V6 Architecture (Train from Scratch, Zero Rigid Rule Overrides, Z
    - Temporal Delta & Full-Pair Geolocation: MAD-standardized transitions (d4, d3, d2, p4m1),
      consecutive + bridged Haversine/Euclidean jumps (geo_12, 23, 34, 13, 24, 14) and 1D coordinate
      jumps (|dlat|, |dlon|) so missing intermediate periods do not blind geolocation anomalies.
-2. Multi-Bandwidth 1D Topological Valley-Rebound KDE Detector:
+2. Multi-Bandwidth 1D Topological Valley-Rebound KDE Detector (V7-A Poisson Island Significance):
    - Excludes discrete count bases automatically to prevent integer-lattice quantization artifacts.
+   - Histograms strictly inside window edges (eliminating extreme-tail boundary clipping spikes) and
+     requires Poisson statistical island excess significance (Z >= 2.0) over the valley baseline so
+     small-sample normal-tail ripples cannot trigger false rebounds.
    - Uses FFT-Gaussian KDE at dual consensus bandwidths to measure density valley depth & rebound
      prominence separating isolated anomaly clusters from unimodal normal tails.
    - Calibrated via a 3-component Gaussian Mixture Model preserving both moderate & extreme modes.
-3. Focused Subspace Density-Ratio + Iterative-Debiased 3D Gaussian KDE Ratio:
+3. Focused Subspace Density-Ratio + 2-Step EM-Debiased Dual-Bandwidth 3D KDE (V7-B Poisson Gate):
    - Focused 3D Combat Consistency subspace combining OOF LightGBM density-ratio estimation
-     with 1-step EM-debiased 3D/1D KDE density ratio (direct Bayes excess probability).
+     with 2-step iterative EM-debiased dual-bandwidth (0.18, 0.24) 3D/1D KDE density ratio
+     gated by 3D kernel-volume Poisson excess significance (z_3d >= 1.25).
    - Profile-Core, Full-Profile, and Temporal-Delta OOF density-ratio detectors vs block-permuted null.
 4. Unsupervised Mixture-Conditional Missingness Recovery (Mixture-MICE):
    - Uses topological KDE to automatically isolate strongly bimodal missing-prone features
      (e.g. behavior_stability, period-4 jumps, bridged geo) without manual thresholds.
    - Trains 5-fold OOF classifiers strictly from peer cross-features (excluding same-base cols)
      and calibrates conditional missing-mode posteriors with Isotonic Regression.
-5. Classical Multi-Paradigm Ensemble & Probabilistic Expected-F3 Thresholding:
+5. Classical Multi-Paradigm Ensemble, Geometric Support Consensus & Expected-F3 Thresholding:
    - Profile & Temporal Isolation Forests, k-NN density distance, and Bottleneck Neural Autoencoder.
+   - Requires multi-paradigm geometric/temporal consensus support to prevent isolated single-tree leaf spikes.
    - Combines calibrated orthogonal posteriors via Noisy-OR fusion and picks k* maximizing E[F3].
 """
 
@@ -209,11 +214,13 @@ def generate_block_permuted_null(
 def compute_1d_topological_valley_kde(
     series_vals: pd.Series | np.ndarray,
     bw_factor: float = 0.08,
+    min_island_z: float = 2.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Pure unsupervised topological 1D anomaly score via FFT-smoothed Gaussian KDE.
-    Measures density barrier drop & cluster rebound prominence relative to main population mode.
-    Monotonic normal tails have rebound == 0, preventing false tail accumulation.
+    Measures density barrier drop & statistically significant cluster rebound prominence
+    relative to main population mode. Unclipped histogramming avoids quantile-edge pile-up,
+    and Poisson island significance suppresses small-sample normal-tail ripples.
     """
     v = np.asarray(series_vals, dtype=float)
     ok = ~np.isnan(v)
@@ -234,13 +241,14 @@ def compute_1d_topological_valley_kde(
     n_grid = 1024
     edges = np.linspace(lo - 2.0 * bw, hi + 2.0 * bw, n_grid + 1)
     dx = (edges[-1] - edges[0]) / n_grid
-    vc = np.clip(vo, edges[0], edges[-1])
-    counts, _ = np.histogram(vc, bins=edges)
+    # Histogram strictly within [edges[0], edges[-1]] so extreme tails do not create boundary spikes
+    counts, _ = np.histogram(vo, bins=edges)
+    n_win = max(float(counts.sum()), 1.0)
     sigma_bins = max(1.0, bw / dx)
     kx = np.arange(-int(4 * sigma_bins), int(4 * sigma_bins) + 1)
     kern = np.exp(-0.5 * (kx / sigma_bins) ** 2)
     kern /= kern.sum()
-    dens = fftconvolve(counts.astype(float), kern, mode="same") / (len(vo) * dx)
+    dens = fftconvolve(counts.astype(float), kern, mode="same") / (n_win * dx)
     log_d = np.log(np.maximum(dens, 1e-12))
 
     mode_idx = int(np.argmax(log_d))
@@ -253,8 +261,25 @@ def compute_1d_topological_valley_kde(
         path_min[i] = min(path_min[i + 1], log_d[i])
 
     valley_drop = np.maximum(0.0, mode_log_d - path_min)
-    rebound = np.maximum(0.0, log_d - path_min)
+    reb_raw = np.maximum(0.0, log_d - path_min)
+    rebound = np.zeros(n_grid)
+    is_pos = reb_raw > 1e-4
+    i = 0
+    while i < n_grid:
+        if is_pos[i]:
+            j = i
+            while j < n_grid and is_pos[j]:
+                j += 1
+            isl_n = float(counts[i:j].sum())
+            exp_val = float(np.sum(np.exp(path_min[i:j]) * n_win * dx))
+            z_isl = (isl_n - exp_val) / np.sqrt(isl_n + exp_val + 1.0)
+            if z_isl >= min_island_z:
+                rebound[i:j] = reb_raw[i:j]
+            i = j
+        else:
+            i += 1
 
+    vc = np.clip(vo, edges[0], edges[-1])
     g_idx = np.clip(np.searchsorted(edges[1:-1], vc, side="right"), 0, n_grid - 1)
     s_drop = np.zeros(len(v))
     s_reb = np.zeros(len(v))
@@ -309,13 +334,18 @@ def compute_debiased_3d_kde_posterior(
     X3_df: pd.DataFrame,
     prelim_anom_prob: np.ndarray,
     exclude_mask: np.ndarray | None = None,
-    bw: float = 0.24,
+    bws: tuple[float, ...] = (0.18, 0.24),
     nbins: int = 80,
-) -> np.ndarray:
+    n_em_steps: int = 2,
+    z_thresh: float = 1.25,
+    z_scale: float = 0.18,
+) -> tuple[np.ndarray, np.ndarray]:
     """
-    Fast binned 3D Gaussian-filtered KDE density ratio with 1-step EM marginal debiasing.
+    Fast binned dual-bandwidth 3D Gaussian-filtered KDE density ratio with 2-step iterative EM
+    marginal debiasing and 3D kernel-volume Poisson excess significance confidence gating.
     Excludes already-isolated topological clusters (e.g. Bot farms at low kda_std) so their
-    smoothing tails do not bleed false positives into nearby normal subspace boundaries.
+    smoothing tails do not bleed false positives into nearby normal subspace boundaries, and
+    suppresses 1-2 sample sparse 3D tail noise while recovering genuine Combat boundary excess.
     """
     X3 = X3_df.to_numpy(dtype=float)
     s3 = (np.nanpercentile(X3, 75, axis=0) - np.nanpercentile(X3, 25, axis=0)) / 1.349
@@ -328,23 +358,39 @@ def compute_debiased_3d_kde_posterior(
     X3c = np.clip(X3s, lo3, hi3 - 1e-9)
     ok3 = ~np.isnan(X3c).any(axis=1)
     fit_ok = ok3 if exclude_mask is None else (ok3 & (~exclude_mask))
+    n_fit = max(float(fit_ok.sum()), 1.0)
 
     hist_3d, _ = np.histogramdd(X3c[fit_ok], bins=edges3)
-    sigmas = [bw / ((hi3[d] - lo3[d]) / nbins) for d in range(3)]
-    p_joint_grid = np.maximum(gaussian_filter(hist_3d, sigma=sigmas, mode="nearest") / max(hist_3d.sum(), 1.0), 1e-12)
-
-    w_clean = np.clip(1.0 - prelim_anom_prob[fit_ok], 0.02, 1.0)
-    p_marg_1d = []
-    for d in range(3):
-        h1, _ = np.histogram(X3c[fit_ok, d], bins=edges3[d], weights=w_clean)
-        h1s = gaussian_filter(h1, sigma=sigmas[d], mode="nearest")
-        p_marg_1d.append(np.maximum(h1s / max(h1.sum(), 1e-9), 1e-12))
-
     idx3 = [np.clip(np.searchsorted(edges3[d][1:-1], X3c[:, d], side="right"), 0, nbins - 1) for d in range(3)]
-    pj = p_joint_grid[idx3[0], idx3[1], idx3[2]]
-    pm = p_marg_1d[0][idx3[0]] * p_marg_1d[1][idx3[1]] * p_marg_1d[2][idx3[2]]
-    ratio = np.where(fit_ok, pj / np.maximum(pm, 1e-12), 1.0)
-    return np.clip((ratio - 1.0) / np.maximum(ratio, 1e-9), 0.0, 1.0)
+
+    p_list, z_list = [], []
+    for bw in bws:
+        sigmas = [bw / ((hi3[d] - lo3[d]) / nbins) for d in range(3)]
+        vol_eff = float(np.prod([np.sqrt(2.0 * np.pi) * sigmas[d] for d in range(3)]))
+        sm_joint = gaussian_filter(hist_3d, sigma=sigmas, mode="nearest")
+        p_joint_grid = np.maximum(sm_joint / max(hist_3d.sum(), 1.0), 1e-12)
+        pj = p_joint_grid[idx3[0], idx3[1], idx3[2]]
+
+        w_clean = np.clip(1.0 - prelim_anom_prob[fit_ok], 0.02, 1.0)
+        for _ in range(n_em_steps):
+            p_marg_1d = []
+            for d in range(3):
+                h1, _ = np.histogram(X3c[fit_ok, d], bins=edges3[d], weights=w_clean)
+                h1s = gaussian_filter(h1, sigma=sigmas[d], mode="nearest")
+                p_marg_1d.append(np.maximum(h1s / max(h1.sum(), 1e-9), 1e-12))
+            pm = p_marg_1d[0][idx3[0]] * p_marg_1d[1][idx3[1]] * p_marg_1d[2][idx3[2]]
+            ratio = np.where(fit_ok, pj / np.maximum(pm, 1e-12), 1.0)
+            p_raw = np.clip((ratio - 1.0) / np.maximum(ratio, 1e-9), 0.0, 1.0)
+            w_clean = np.clip(1.0 - p_raw[fit_ok], 0.02, 1.0)
+
+        obs_mass = pj * n_fit * vol_eff
+        exp_mass = pm * n_fit * vol_eff
+        z_3d = (obs_mass - exp_mass) / np.sqrt(obs_mass + exp_mass + 1.0)
+        conf = 1.0 / (1.0 + np.exp(-(z_3d - z_thresh) / max(z_scale, 0.05)))
+        p_list.append(p_raw * conf)
+        z_list.append(z_3d)
+
+    return np.mean(p_list, axis=0), np.mean(z_list, axis=0)
 
 
 def fit_unsupervised_mixture_mice_recovery(
@@ -439,7 +485,7 @@ def to_mad_z(scores: np.ndarray) -> np.ndarray:
 def main():
     t0 = time.time()
     print("=" * 74)
-    print("Task 5: Rule-Compliant Pure Unsupervised Multi-Paradigm Pipeline (V6)")
+    print("Task 5: Rule-Compliant Pure Unsupervised Multi-Paradigm Pipeline (V7-B)")
     print("=" * 74)
 
     test_df = pd.read_csv(os.path.join(DATA_DIR, "test.csv"))
@@ -482,12 +528,15 @@ def main():
     p_topo = 1.0 - gmm_t.predict_proba(t_log.reshape(-1, 1))[:, bulk_comp]
     print(f"[2/5] 1D Topological Valley KDE calibrated (3-GMM bulk={gmm_t.means_.ravel()[bulk_comp]:.2f}) ({time.time() - t0:.1f}s)")
 
-    # 3. Focused Subspace Density Ratios + Iterative-Debiased 3D Gaussian KDE Ratio
+    # 3. Focused Subspace Density Ratios + 2-Step EM-Debiased Dual-Bandwidth 3D Gaussian KDE Ratio
     # Exclude already-isolated topological clusters (p_topo >= 0.5) inside 3D KDE so Bot extreme low-kda_std doesn't bleed tails
     topo_core_mask = p_topo >= 0.50
     _, p_ex_c3 = fit_lgb_oof_density_ratio(prof_df, prof_perm, COMBAT_3D_COLS, n_rep=5, n_estimators=180, num_leaves=15)
-    p_kde_c3 = compute_debiased_3d_kde_posterior(prof_df[COMBAT_3D_COLS], p_ex_c3, exclude_mask=topo_core_mask, bw=0.24, nbins=80)
-    p_combat = 0.5 * p_ex_c3 + 0.5 * p_kde_c3
+    p_kde_c3, z_3d_c3 = compute_debiased_3d_kde_posterior(
+        prof_df[COMBAT_3D_COLS], p_ex_c3, exclude_mask=topo_core_mask, bws=(0.18, 0.24), nbins=80, n_em_steps=2, z_thresh=1.25, z_scale=0.18
+    )
+    conf_c3 = 1.0 / (1.0 + np.exp(-(z_3d_c3 - 1.25) / 0.18))
+    p_combat = np.maximum(p_kde_c3, (0.5 * p_ex_c3 + 0.5 * p_kde_c3) * conf_c3)
 
     prof_core_cols = [
         "behavior_stability", "purchase_frequency_mean", "purchase_frequency_std", "login_count_mean", "account_age_days",
@@ -559,7 +608,11 @@ def main():
         + (np.mean(v_log ** 3, axis=0)) ** (1.0 / 3.0)
     ) / 3.0
     gmm_g = GaussianMixture(n_components=2, covariance_type="full", random_state=SEED).fit(score_global.reshape(-1, 1))
-    p_global = gmm_g.predict_proba(score_global.reshape(-1, 1))[:, int(np.argmax(gmm_g.means_.ravel()))]
+    p_global_raw = gmm_g.predict_proba(score_global.reshape(-1, 1))[:, int(np.argmax(gmm_g.means_.ravel()))]
+    # Multi-paradigm geometric consensus support: prevents isolated single-tree leaf spikes without geometric corroboration
+    geom_supp = np.maximum(views_global[2:6].mean(axis=0), z_3d_c3)
+    conf_glob = 1.0 / (1.0 + np.exp(-(geom_supp - 1.15) / 0.12))
+    p_global = p_global_raw * conf_glob
 
     # Probabilistic Noisy-OR Fusion across orthogonal anomaly mechanisms (zero rigid rule overrides!)
     def clamp_floor(p: np.ndarray, floor: float) -> np.ndarray:
@@ -568,7 +621,7 @@ def main():
     post_prob = 1.0 - (
         (1.0 - clamp_floor(p_global, 0.05))
         * (1.0 - clamp_floor(p_topo, 0.05))
-        * (1.0 - clamp_floor(p_combat, 0.16))
+        * (1.0 - clamp_floor(p_combat, 0.12))
         * (1.0 - clamp_floor(na_recovery_prob, 0.15))
     )
 
@@ -615,7 +668,7 @@ def main():
         m = mask.fillna(False).to_numpy()
         print(f"  {name:26s}: {task5_pred[m].mean() * 100:5.1f}% ({task5_pred[m].sum():,}/{m.sum():,})")
 
-    out_path = os.path.join(SUB_DIR, "sub_task5.csv")
+    out_path = os.path.join(SUB_DIR, "sub_task5_v7-b.csv")
     out_df = pd.DataFrame({
         "id": sample_sub["id"].to_numpy(),
         "task5": task5_pred,

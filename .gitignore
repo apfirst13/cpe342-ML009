@@ -1,4 +1,5 @@
-rule
+# CPE342 Kaggle ML009 .gitignore
+
 # Virtual Environment
 venv/
 .venv/
@@ -7,9 +8,11 @@ env/
 
 # Python cache & Jupyter checkpoints
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 .ipynb_checkpoints/
+**/.ipynb_checkpoints/
 
 # Kaggle Dataset: Ignore heavy files (CSV train/test, images, zips)
 data/**/*.csv
@@ -22,17 +25,38 @@ data/**/*.jpeg
 data/cpe342-kaggle-main/
 CPE342-Hackathon/
 
-# Model checkpoints & artifacts
+# Model checkpoints, cached embeddings & binary artifacts
 *.pkl
 *.pt
 *.pth
 *.cbm
 *.joblib
 *.npy
+*.npz
+*.zip
 catboost_info/
 **/catboost_info/
 
-# Task 4 & Task 3 local helper scripts, blueprints & plots (keep locally, exclude from git)
+# Submissions & generated outputs
+submissions/*.csv
+!submissions/.gitkeep
+final_submission*.csv
+experiments/submissions_archive/
+experiments/**/*.csv
+
+# Experiments heavy outputs, plots & local helper/builder scripts
+experiments/**/cloud_outputs/
+experiments/**/eda_plots/
+experiments/task4/TASK4_BLUEPRINT.md
+experiments/task*/phase*.py
+experiments/task*/step*.py
+experiments/task*/build_*.py
+experiments/task1/task1test.ipynb
+experiments/task1/best_threshold.txt
+experiments/task4/task4_cloud_max_score.ipynb
+experiments/scratch/
+
+# Legacy root-level task helper paths (keep excluded if regenerated)
 task4/TASK4_BLUEPRINT.md
 task4/phase*.py
 task4/build_notebook.py
@@ -41,11 +65,9 @@ task3/step*.py
 task3/train_task3_upgraded.py
 task3/build_task3_notebook.py
 task3/sub_task3.csv
-
-# Submissions
-submissions/*.csv
-!submissions/.gitkeep
-final_submission*.csv
+task2/step*.py
+task2/build_task2_notebook_and_sub.py
+task2/sub_task2.csv
 
 # Local scratch, drafts & backup notebooks
 scratch/

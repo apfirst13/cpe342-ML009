@@ -16,8 +16,9 @@ seaborn>=0.12.0
 jupyter>=1.0.0
 ipykernel>=6.25.0
 
-# Computer Vision (Recommended to train on Kaggle/Colab GPU)
-# torch
-# torchvision
-# timm
-# pillow
+# Computer Vision & Cloud Download (Task 4: Kaggle/Colab L4 GPU recommended)
+torch>=2.1.0
+torchvision>=0.16.0
+timm>=1.0.15
+pillow>=10.0.0
+gdown>=5.0.0

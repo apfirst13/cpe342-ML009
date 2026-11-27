@@ -20,14 +20,16 @@ Repository สำหรับโปรเจกต์รายวิชา **CPE
 
 ```text
 cpe342-ML009/
-├── task1/                  # โค้ดและโน้ตบุ๊กสำหรับ Task 1 (Anti-Cheat Pre-Filter)
-├── task2/                  # โค้ดและโน้ตบุ๊กสำหรับ Task 2 (Player Segment Classification)
-├── task3/                  # โค้ดและโน้ตบุ๊กสำหรับ Task 3 (Monthly Spending Prediction)
-├── task4/                  # โค้ดและโน้ตบุ๊กสำหรับ Task 4 (Game Title Detection)
-├── task5/                  # โค้ดและโน้ตบุ๊กสำหรับ Task 5 (Account Security Monitoring)
+├── task1/task1.ipynb       # Final Notebook สำหรับ Task 1 (Anti-Cheat Pre-Filter)
+├── task2/task2.ipynb       # Final Notebook สำหรับ Task 2 (Player Segment Classification)
+├── task3/task3.ipynb       # Final Notebook สำหรับ Task 3 (Monthly Spending Prediction)
+├── task4/task4.ipynb       # Final Notebook สำหรับ Task 4 (Game Title Detection)
+├── task5/task5.ipynb       # Final Notebook สำหรับ Task 5 (Account Security Monitoring)
+├── experiments/            # สคริปต์ทดลอง โน้ตบุ๊กเก่า และบันทึกการพัฒนา (task1-task5, scratch)
 ├── data/                   # โฟลเดอร์วางชุดข้อมูลจาก Kaggle (ไม่รวมใน Git)
 ├── submissions/            # ไฟล์คำตอบแยกตาม Task (sub_task1.csv - sub_task5.csv)
 ├── merge_submission.py     # สคริปต์รวมคำตอบทั้ง 5 Tasks และตรวจสอบความถูกต้อง
+├── final_submission.csv    # ไฟล์คำตอบสุดท้ายพร้อมส่ง Kaggle
 └── requirements.txt        # รายการไลบรารีที่ใช้ในโปรเจกต์
 ```
 
@@ -50,22 +52,24 @@ pip install -r requirements.txt
 ### 2. เตรียมชุดข้อมูล
 ดาวน์โหลดชุดข้อมูลจาก Kaggle แล้วแตกไฟล์ลงในโฟลเดอร์ `data/` (`data/task1/` ถึง `data/task5/` และ `data/sample_submission.csv`)
 
-### 3. รันโมเดลของแต่ละ Task
+### 3. รัน Final Notebook ของแต่ละ Task
+โน้ตบุ๊กสุดท้ายของทุก Task ถูกจัดให้อยู่ในไฟล์เดียวจบแบบ Standalone และบันทึกผลลัพธ์ไปยัง `submissions/sub_task1.csv` ถึง `sub_task5.csv` โดยอัตโนมัติ (สคริปต์ทดลองและบันทึกการพัฒนาก่อนหน้าเก็บแยกไว้ใน `experiments/`)
+
+| Task | Final Notebook | สภาพแวดล้อมที่แนะนำ | ไฟล์คำตอบที่สร้าง |
+| :--- | :--- | :--- | :--- |
+| **Task 1** | `task1/task1.ipynb` | Local CPU/GPU (Jupyter / VS Code) | `submissions/sub_task1.csv` |
+| **Task 2** | `task2/task2.ipynb` | Local CPU (Jupyter / VS Code) | `submissions/sub_task2.csv` |
+| **Task 3** | `task3/task3.ipynb` | Local CPU (Jupyter / VS Code) | `submissions/sub_task3.csv` |
+| **Task 4** | `task4/task4.ipynb` | Google Colab L4 GPU / Local GPU | `submissions/sub_task4.csv` |
+| **Task 5** | `task5/task5.ipynb` | Local CPU (Jupyter / VS Code) | `submissions/sub_task5.csv` |
+
+หรือรันผ่าน CLI ด้วย `jupyter nbconvert`:
 ```bash
-# Task 1
-python task1/train_task1_upgraded.py    # (หรือ task1/train_best_task1.py)
-
-# Task 2
-python task2/train_task2.py
-
-# Task 3
-python task3/train_task3.py
-
-# Task 4 (รันเทรนบน Colab L4 จาก task4/task4_cloud_t4_v4.ipynb แล้วรวมผลด้วย)
-python task4/run_phase3_cloud_meta_ensemble.py
-
-# Task 5
-python task5/train_task5.py
+jupyter nbconvert --to notebook --execute --inplace task1/task1.ipynb
+jupyter nbconvert --to notebook --execute --inplace task2/task2.ipynb
+jupyter nbconvert --to notebook --execute --inplace task3/task3.ipynb
+# Task 4 แนะนำให้เปิดรัน E2E บน Google Colab L4 GPU (task4/task4.ipynb)
+jupyter nbconvert --to notebook --execute --inplace task5/task5.ipynb
 ```
 
 ### 4. รวมไฟล์คำตอบสำหรับส่ง Kaggle
@@ -80,8 +84,8 @@ python merge_submission.py
 
 | Task | แนวทางหลัก (Methodology) | ผลประเมิน (Validation) |
 | :--- | :--- | :--- |
-| **Task 1** | 71-Feature Covariance-Imputed + Fold-Isolated Pseudo-Labeling + 7-Model Logit Blend | Nested OOF $F_2 = 0.83815$ (AUC $0.89336$) |
-| **Task 2** | Denoise 16 Noise Cols + 2-Axis Latent Scores + 6-Model Level-2 Stacking | OOF Macro $F_1 = 0.76700$ |
+| **Task 1** | 71-Feature Covariance-Imputed + Fold-Isolated Pseudo-Labeling + 7-Model Logit Blend | Nested OOF $F_2 = 0.83841$ (AUC $0.89340$) / Global $0.83863$ |
+| **Task 2** | Denoise 16 Noise Cols + 2-Axis Latent Scores + 6-Model Level-2 Stacking | Nested OOF Macro $F_1 = 0.75664$ (Full $0.75760$) |
 | **Task 3** | Algebraic Recovery + Two-Stage Bayes-L1 + Mixture CDF + 50/50 Multi-CV Ensemble | Nested OOF NMAE $= 0.79630$ |
-| **Task 4** | De-Tinted Restoration + Calibrated 3-Paradigm Ensemble (`ConvNeXt-S` + `Swin-T` + `5-Foundation MLP`) | Unseen-Scene $F_1 = 0.98036$ |
-| **Task 5** | V6 Pure Unsupervised (Topo Valley KDE + 3D Combat DR + Mixture-MICE + Noisy-OR) | Pure-ML Reference Capture $96.05\%$ ($2,192$ accounts) |
+| **Task 4** | De-Tinted Restoration + Calibrated 3-Paradigm Ensemble (`ConvNeXt-S` + `Swin-T` + `5-Foundation MLP`) | Unseen-Scene $F_1 = 0.98036$ (Balanced $F_1 = 0.97909$) |
+| **Task 5** | V7-A Pure Unsupervised (Unclipped 1D Topo KDE + Poisson $Z \ge 2.0$ + 1-Step EM 3D Combat DR + Mixture-MICE + Noisy-OR) | $2,163$ Flagged Accounts ($8.35\%$) |
